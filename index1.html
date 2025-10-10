@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zelfzorg · Snelle keuze</title>
+    <style>
+        :root{
+            --bg:#f9fafb; --card:#fff; --text:#111827; --muted:#6b7280; --brand:#2563eb;
+            --ok:#16a34a; --caution:#d97706; --no:#dc2626; --chip:#eef2ff;
+            --radius:14px; --radius-sm:10px; --gap:14px; --shadow:0 6px 18px rgba(0,0,0,.06);
+        }
+        *{box-sizing:border-box}
+        body{margin:0; background:var(--bg); color:var(--text); font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+        .container{max-width:1100px; margin:0 auto; padding:20px}
+        header{display:flex; align-items:center; gap:10px; margin-bottom:16px}
+        .logo{width:40px;height:40px;border-radius:10px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700}
+        h1{font-size:22px;margin:0}
+        .breadcrumbs{font-size:13px;color:var(--muted);margin:8px 0 18px}
+        .breadcrumbs a{color:inherit;text-decoration:none}
+        .breadcrumbs a:hover{color:var(--brand)}
+        .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap)}
+        @media(max-width:900px){.grid{grid-template-columns:repeat(3,1fr)}}
+        @media(max-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
+        .btn-tile{
+            background:var(--card);border:1px solid #e5e7eb;border-radius:var(--radius);
+            padding:18px;box-shadow:var(--shadow);cursor:pointer;transition:transform .05s ease,border-color .2s;
+            display:flex;align-items:center;justify-content:center;text-align:center;min-height:84px;font-weight:600;user-select:none
+        }
+        .btn-tile:hover{transform:translateY(-1px);border-color:#cbd5e1}
+        .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+        .search{flex:1;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;box-shadow:var(--shadow)}
+        .ghost{padding:8px 12px;border-radius:10px;background:#e0ecff;color:#1e40af;border:1px solid #bfdbfe;font-weight:600}
+        .card-list{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--gap)}
+        @media(max-width:900px){.card-list{grid-template-columns:1fr}}
+        .card{background:var(--card);border:1px solid #e5e7eb;border-radius:var(--radius);box-shadow:var(--shadow);display:flex;gap:16px;padding:14px}
+        .photo{width:120px;min-width:120px;height:120px;border-radius:var(--radius-sm);background:#f3f4f6;display:grid;place-items:center;color:#6b7280;font-size:12px;border:1px dashed #d1d5db;overflow:hidden}
+        .photo img{max-width:100%;max-height:100%;border-radius:10px;display:block}
+        .card h3{margin:0 0 6px 0;font-size:16px}
+        .meta{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 10px}
+        .chip{font-size:12px;padding:6px 10px;background:var(--chip);border-radius:999px;color:#374151;border:1px solid #e5e7eb}
+        .row{font-size:14px;margin:2px 0;color:#374151}
+        .icons{margin-top:auto;display:flex;gap:8px}
+        .icon{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:6px 8px;border-radius:8px;border:1px solid #e5e7eb;background:#fff}
+        .dot{width:8px;height:8px;border-radius:99px}
+        .ok .dot{background:var(--ok)} .caution .dot{background:var(--caution)} .no .dot{background:var(--no)}
+    </style>
+</head>
+<body>
+<div class="container">
+    <header><div class="logo">Z</div><h1>Zelfzorg · Snelle keuze</h1></header>
+    <div class="breadcrumbs" id="crumbs"></div>
+
+    <div class="toolbar" id="toolbar" hidden>
+        <input id="search" class="search" type="search" placeholder="Zoek op merk of stofnaam…" />
+        <button id="backBtn" class="ghost">Terug</button>
+    </div>
+
+    <div id="view"></div>
+</div>
+
+<script>
+    /* =======================
+       1) Навигационные данные
+       ======================= */
+    const TABS = [
+        {id:'eerste-keus', title:'Eerste keus'},
+        {id:'zwangerschap', title:'Zwangerschap'},
+        {id:'kinderen', title:'Kinderen'},
+        {id:'andere', title:'Andere'}
+    ];
+
+    const CATS = [
+        { id:'hoest',      title:'Hoest', subs:[
+                {id:'droge-hoest',        title:'Droge hoest'},
+                {id:'productieve-hoest',  title:'Productieve hoest'},
+                {id:'vastzittende-hoest', title:'Vastzittende hoest'},
+                {id:'alle-hoest',         title:'Alle hoest'}
+            ]},
+        { id:'neus',       title:'Neus',           subs:[] },
+        { id:'huid',       title:'Huid',           subs:[
+                {id:'wonden',             title:'Wonden'},
+                {id:'huiduitslag-jeuk',   title:'Huiduitslag & jeuk'},
+                {id:'insectenbeten',      title:'Insectenbeten'},
+                {id:'hoofdluis',          title:'Hoofdluis'},
+                {id:'acne',               title:'Acne'},
+                {id:'koortslip',          title:'Koortslip'},
+                {id:'voetschimmel',       title:'Voetschimmel'},
+                {id:'wratten',            title:'Wratten'}
+            ]},
+        { id:'ogen',       title:'Ogen',           subs:[] },
+        { id:'maag-darm',  title:'Maag & Darm',    subs:[
+                {id:'maagzuurbinders',    title:'Maagzuurbinders'},
+                {id:'maagzuurremmers',    title:'Maagzuurremmers'},
+                {id:'krampen',            title:'Krampen'},
+                {id:'verstopping',        title:'Verstopping'},
+                {id:'diarree',            title:'Diarree'}
+            ]},
+        { id:'allergie',   title:'Allergie',       subs:[] },
+        { id:'reisziekte', title:'Reisziekte',     subs:[] },
+        { id:'pijn',       title:'Pijn',           subs:[
+                {id:'koorts',             title:'Koorts'},
+                {id:'spierpijn',          title:'Spierpijn'},
+                {id:'keelpijn',           title:'Keelpijn'},
+                {id:'oorpijn',            title:'Oorpijn'},
+                {id:'mondpijn',           title:'Mondpijn'}
+            ]},
+        { id:'overige',    title:'Overige',        subs:[
+                {id:'misselijkheid',      title:'Misselijkheid'},
+                {id:'wormen',             title:'Wormen'},
+                {id:'aambeien',           title:'Aambeien'},
+                {id:'morning-afterpil',   title:'Morning-afterpil'},
+                {id:'vaginale-afscheiding',title:'Vaginale afscheiding'},
+                {id:'stoppen-met-roken',  title:'Stoppen met roken'},
+                {id:'urineweg-problemen', title:'Urineweg problemen'}
+            ]}
+    ];
+
+    /* =======================
+       2) Примеры лекарств
+       - cat: категория (обяз.)
+       - subs: массив подразделов (может быть пустым для категорий без подразделов)
+       - tabs: в каких вкладках показывать вручную (кроме auto-zwangerschap)
+       - icons.zw === 'ok' → автоматом появится в вкладке 'zwangerschap' выбранного подраздела
+       ======================= */
+    const MEDS = [
+        // Hoest → Droge hoest (и также Productieve hoest)
+        {
+            cat:'hoest',
+            subs:['droge-hoest'],   // одна карточка в двух подразделах
+            tabs:['eerste-keus'],
+            brand:'Kruidvat Noscapine',
+            inn:'Noscapine',
+            form:'hoestdrank',
+            strength:'1 mg/ml',
+            indication:'Droge/prikkelhoest',
+            age_min_months:36,
+            dosage_adults:'vanaf 12 jaar: 15–30 ml, 3–4×/dag',
+            dosage_children:'6–12 j: 15 ml 2–4×/dag; 3–6 j: 7,5 ml 2–4×/dag',
+            max_duration_days:14,
+            contraindications:'—',
+            adverse:'Duizeligheid; slaperigheid; misselijkheid.',
+            interactions:'Alcohol; vitamine K-remmers; fenytoine.',
+            icons:{ zw:'caution', la:'no', drv:'caution' },
+            photo_url:'image/hoest/noscapine.avif'
+        },
+        {
+            cat:'hoest',
+            subs:['droge-hoest'],   // одна карточка в двух подразделах
+            tabs:['eerste-keus'],
+            brand:'Natterman Noscasan',
+            inn:'Noscapine',
+            form:'hoestdrank',
+            strength:'1 mg/ml',
+            indication:'Droge/prikkelhoest',
+            age_min_months:36,
+            dosage_adults:'vanaf 12 jaar: 15–30 ml, 3–4×/dag',
+            dosage_children:'6–12 j: 15 ml 2–4×/dag; 3–6 j: 7,5 ml 2–4×/dag',
+            max_duration_days:14,
+            contraindications:'—',
+            adverse:'Duizeligheid; slaperigheid; misselijkheid.',
+            interactions:'Alcohol; vitamine K-remmers; fenytoine.',
+            icons:{ zw:'caution', la:'no', drv:'caution' },
+            photo_url:'./image/hoest/natterman-nos.avif'
+        },
+        {
+            cat:'hoest',
+            subs:['droge-hoest','vastzittende-hoest'],   // одна карточка в двух подразделах
+            tabs:['eerste-keus'],
+            brand:'Bisolvon 2-in-1',
+            inn:'Honing, Smalle Weegbree, Tijm',
+            form:'hoestdrank',
+            strength:'',
+            indication:'Droge/vastzittende hoest',
+            age_min_months:216,
+            dosage_adults:'2 doseerlepels (10 ml) 2-3×/dag',
+            dosage_children:'',
+            max_duration_days:21,
+            contraindications:'',
+            adverse:'',
+            interactions:'',
+            icons:{ zw:'ok', la:'ok', drv:'ok' },
+            photo_url:'./image/hoest/bisolvon-2-1.avif'
+        },
+        // Neus — без подразделов (сразу вкладки)
+        {
+            cat:'neus',
+            subs:[],                                     // нет подразделов
+            tabs:['eerste-keus'],
+            brand:'Otrivin 1 mg/ml',
+            inn:'Xylometazoline',
+            form:'neusspray',
+            strength:'1 mg/ml',
+            indication:'Neusverstopping',
+            age_min_months:144,
+            dosage_adults:'1 spray per neusgat, tot 3×/dag, max 7 dgn',
+            dosage_children:'—',
+            max_duration_days:7,
+            contraindications:'Nauwe-kamerhoekglaucoom, rhinitis sicca.',
+            adverse:'Droogte; branderig gevoel; hoofdpijn.',
+            interactions:'MAO-remmers; TCA.',
+            icons:{ zw:'caution', la:'caution', drv:'ok' },
+            photo_url:''
+        },
+        // Huid → Hoofdluis
+        {
+            cat:'huid',
+            subs:['hoofdluis'],
+            tabs:['eerste-keus'],
+            brand:'Dimeticon lotion',
+            inn:'Dimeticon',
+            form:'lotion',
+            strength:'—',
+            indication:'Hoofdluis',
+            age_min_months:6,
+            dosage_adults:'Volgens bijsluiter',
+            dosage_children:'Vanaf 6 mnd',
+            max_duration_days:14,
+            contraindications:'—',
+            adverse:'Irritatie huid (zeldzaam).',
+            interactions:'—',
+            icons:{ zw:'ok', la:'ok', drv:'ok' },       // → авто в Zwangerschap
+            photo_url:''
+        }
+    ];
+
+    /* =======================
+       3) Роутер состояния
+       ======================= */
+    const state = { cat:null, sub:null, tab:null, q:'' };
+    const $view = document.getElementById('view');
+    const $crumbs = document.getElementById('crumbs');
+    const $toolbar = document.getElementById('toolbar');
+    const $search = document.getElementById('search');
+    const $back = document.getElementById('backBtn');
+
+    $back.addEventListener('click', goBack);
+    $search.addEventListener('input', e => { state.q = e.target.value.trim().toLowerCase(); render(); });
+
+    function go(route){ Object.assign(state, route); render(); }
+    function goBack(){
+        if(state.tab){ state.tab=null; render(); return; }
+        if(state.sub){ state.sub=null; render(); return; }
+        if(state.cat){ state.cat=null; render(); return; }
+    }
+
+    /* =======================
+       4) Рендер
+       ======================= */
+    function render(){
+        // хлебные крошки
+        const crumbs = [`<a href="#" data-nav="start">Start</a>`];
+        if(state.cat){ crumbs.push(`<a href="#" data-nav="cat">${titleOf(CATS,state.cat)}</a>`); }
+        if(state.sub){ crumbs.push(`<a href="#" data-nav="sub">${titleOf(subsOf(state.cat),state.sub)}</a>`); }
+        if(state.tab){ crumbs.push(`<span>${titleOf(TABS,state.tab)}</span>`); }
+        $crumbs.innerHTML = crumbs.join(' · ');
+        $crumbs.querySelectorAll('a').forEach(a=>{
+            a.addEventListener('click', ev=>{
+                ev.preventDefault();
+                const t=a.dataset.nav;
+                if(t==='start'){ state.cat=null; state.sub=null; state.tab=null; }
+                if(t==='cat'){ state.sub=null; state.tab=null; }
+                if(t==='sub'){ state.tab=null; }
+                render();
+            });
+        });
+
+        // тулбар показываем только на уровне списка
+        const inList = !!state.tab;
+        $toolbar.hidden = !inList;
+
+        // 1) Главная — категории
+        if(!state.cat){
+            $view.innerHTML = grid(CATS.map(c=>({id:c.id,title:c.title})));
+            bindTiles(d=> go({cat:d.id, sub:null, tab:null}));
+            return;
+        }
+
+        // 2) Подразделы (если они есть у категории)
+        const subs = subsOf(state.cat);
+        if(subs.length && !state.sub){
+            $view.innerHTML = grid(subs);
+            bindTiles(d=> go({sub:d.id, tab:null}));
+            return;
+        }
+
+        // 3) Вкладки (всегда одинаковые)
+        if(!state.tab){
+            $view.innerHTML = grid(TABS);
+            bindTiles(d=> go({tab:d.id}));
+            return;
+        }
+
+        // 4) Список карточек
+        const items = MEDS
+            .filter(m => m.cat === state.cat)
+            .filter(m => {
+                // если у категории есть подразделы — фильтруем по ним
+                if(subs.length){
+                    const s = Array.isArray(m.subs) ? m.subs : (m.sub ? [m.sub] : []);
+                    return s.indexOf(state.sub) !== -1;
+                }
+                return true;
+            })
+            .filter(m => {
+                // вкладка Zwangerschap — автомат по icons.zw === 'ok'
+                if(state.tab === 'zwangerschap'){
+                    return m.icons && m.icons.zw === 'ok';
+                }
+                // остальные вкладки — по полю tabs (строка/массив)
+                const tabs = Array.isArray(m.tabs) ? m.tabs : (m.tab ? [m.tab] : []);
+                return tabs.indexOf(state.tab) !== -1;
+            })
+            .filter(m => {
+                // поиск
+                if(!state.q) return true;
+                const hay = `${m.brand} ${m.inn} ${m.form} ${m.indication}`.toLowerCase();
+                return hay.includes(state.q);
+            });
+
+        $view.innerHTML = renderList(items);
+    }
+
+    /* =======================
+       5) Вспомогательные
+       ======================= */
+    function subsOf(catId){
+        const cat = CATS.find(c => c.id===catId);
+        return cat ? cat.subs : [];
+    }
+    function titleOf(arr,id){ const it = arr.find(x=>x.id===id); return it ? it.title : id; }
+
+    function grid(items){
+        return `<div class="grid">
+    ${items.map(it=>`<div class="btn-tile" tabindex="0" data-id="${it.id}">${it.title}</div>`).join('')}
+  </div>`;
+    }
+    function bindTiles(handler){
+        $view.querySelectorAll('.btn-tile').forEach(el=>{
+            el.addEventListener('click', ()=> handler(el.dataset));
+            el.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); handler(el.dataset); }});
+        });
+    }
+    function renderList(items){
+        if(items.length===0) return `<p class="muted">Geen resultaten.</p>`;
+        return `<div class="card-list">${items.map(cardHTML).join('')}</div>`;
+    }
+    function iconHTML(kind,status){
+        const label = kind==='zw'?'Zwangerschap':kind==='la'?'Lactatie':'Rijden';
+        const cls = status==='ok'?'ok':status==='no'?'no':'caution';
+        const txt = status==='ok'?'ok':status==='no'?'nee':'let op';
+        return `<span class="icon ${cls}" title="${label}: ${txt}"><span class="dot"></span>${label}</span>`;
+    }
+    function cardHTML(m){
+        const chips = [m.form, m.strength, (m.age_min_months!=null?`≥ ${Math.round(m.age_min_months/12)} j`:''), (m.max_duration_days?`Max ${m.max_duration_days} d`:'')]
+            .filter(Boolean).map(x=>`<span class="chip">${x}</span>`).join('');
+        return `<article class="card" aria-label="${m.brand}">
+    <div class="photo">${m.photo_url ? `<img src="${m.photo_url}" alt="${m.brand}">` : 'Foto verpakking'}</div>
+    <div style="flex:1;display:flex;flex-direction:column">
+      <h3>${m.brand}</h3>
+      <div class="meta">${chips}</div>
+      <div class="row"><strong>Stofnaam:</strong> ${m.inn||'—'}</div>
+      <div class="row"><strong>Indicatie:</strong> ${m.indication||'—'}</div>
+      <div class="row"><strong>Dosering (volw.):</strong> ${m.dosage_adults||'—'}</div>
+      <div class="row"><strong>Dosering (kinderen):</strong> ${m.dosage_children||'—'}</div>
+      <div class="row"><strong>Contra-indicaties:</strong> ${m.contraindications||'—'}</div>
+      <div class="row"><strong>Bijwerkingen:</strong> ${m.adverse||'—'}</div>
+      <div class="row"><strong>Interacties:</strong> ${m.interactions||'—'}</div>
+      <div class="icons">
+        ${iconHTML('zw', (m.icons||{}).zw||'caution')}
+        ${iconHTML('la', (m.icons||{}).la||'caution')}
+        ${iconHTML('drv',(m.icons||{}).drv||'ok')}
+      </div>
+    </div>
+  </article>`;
+    }
+
+    // старт
+    render();
+</script>
+</body>
+</html>
